@@ -4,6 +4,8 @@ import com.seguridadjwt.modules.user.web.dto.request.LoginRequest;
 import com.seguridadjwt.modules.user.web.dto.request.RefreshTokenRequest;
 import com.seguridadjwt.modules.user.web.dto.response.LoginResponse;
 import com.seguridadjwt.shared.exceptions.BusinessException;
+import com.seguridadjwt.shared.security.CustomUserDetails;
+import com.seguridadjwt.shared.security.CustomUserDetailsService;
 import com.seguridadjwt.shared.security.JwtTokenProvider;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +14,10 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -21,10 +26,10 @@ public class AuthController {
 
   private final AuthenticationManager authenticationManager;
   private final JwtTokenProvider jwtTokenProvider;
+  private final CustomUserDetailsService customUserDetailsService;
 
   @PostMapping("/login")
   public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-
     try {
       Authentication authentication = authenticationManager.authenticate(
         new UsernamePasswordAuthenticationToken(
@@ -36,20 +41,17 @@ public class AuthController {
       String accessToken = jwtTokenProvider.generateAccessToken(authentication);
       String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
-      var principal = authentication.getPrincipal();
-      String username = authentication.getName();
-      String email = null;
-      var authorities = authentication.getAuthorities();
+      CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
 
       LoginResponse response = LoginResponse.builder()
         .accessToken(accessToken)
         .refreshToken(refreshToken)
-        .username(username)
-        .email(email)
+        .username(principal.getUsername())
+        .email(principal.getEmail())
         .roles(
-          authorities.stream()
+          authentication.getAuthorities().stream()
             .map(a -> a.getAuthority())
-            .collect(java.util.stream.Collectors.toSet())
+            .collect(Collectors.toSet())
         )
         .build();
 
@@ -71,18 +73,27 @@ public class AuthController {
 
     String username = jwtTokenProvider.getUsernameFromToken(refreshToken);
 
+    // Cargar usuario real desde BD para reconstruir authorities (roles)
+    var userDetails = customUserDetailsService.loadUserByUsername(username);
+
     Authentication authentication = new UsernamePasswordAuthenticationToken(
-      username,
+      userDetails,
       null,
-      java.util.Collections.emptyList()
+      userDetails.getAuthorities()
     );
 
     String newAccessToken = jwtTokenProvider.generateAccessToken(authentication);
 
     LoginResponse response = LoginResponse.builder()
       .accessToken(newAccessToken)
-      .refreshToken(refreshToken)
-      .username(username)
+      .refreshToken(refreshToken) // (opcional: rotar refresh token, no lo cambio aquí)
+      .username(userDetails.getUsername())
+      .email(userDetails instanceof CustomUserDetails cud ? cud.getEmail() : null)
+      .roles(
+        userDetails.getAuthorities().stream()
+          .map(GrantedAuthority::getAuthority)
+          .collect(Collectors.toSet())
+      )
       .build();
 
     return ResponseEntity.ok(response);

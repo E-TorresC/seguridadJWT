@@ -25,8 +25,6 @@ public class Role {
   @Column(length = 255)
   private String description;
 
-//  @Column(nullable = false, length = 20)
-//  private String status;  // ACTIVE / INACTIVE
 
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;

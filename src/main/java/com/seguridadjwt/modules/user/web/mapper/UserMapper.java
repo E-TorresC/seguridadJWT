@@ -17,12 +17,12 @@ public interface UserMapper {
 
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "password", ignore = true) // se setea en el servicio
-  @Mapping(target = "status", expression = "java(com.seguridadjwt.shared.security.UserStatus.ACTIVE)")
-  @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
+  @Mapping(target = "status", ignore = true)
+  @Mapping(target = "createdAt", ignore = true)
   @Mapping(target = "updatedAt", ignore = true)
   @Mapping(target = "createdBy", ignore = true)
   @Mapping(target = "updatedBy", ignore = true)
-  @Mapping(target = "failedAttempts", expression = "java(0)")
+  @Mapping(target = "failedAttempts", ignore = true)
   @Mapping(target = "lastLoginAt", ignore = true)
   @Mapping(target = "lastFailedAt", ignore = true)
   @Mapping(target = "roles", ignore = true)

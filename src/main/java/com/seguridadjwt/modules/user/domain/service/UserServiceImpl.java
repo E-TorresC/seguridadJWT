@@ -8,6 +8,7 @@ import com.seguridadjwt.modules.user.web.dto.request.UserCreateRequest;
 import com.seguridadjwt.modules.user.web.dto.request.UserUpdateRequest;
 import com.seguridadjwt.modules.user.web.dto.response.UserResponse;
 import com.seguridadjwt.modules.user.web.mapper.UserMapper;
+import com.seguridadjwt.shared.exceptions.BusinessException;
 import com.seguridadjwt.shared.exceptions.ResourceNotFoundException;
 import com.seguridadjwt.shared.security.UserStatus;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,11 @@ public class UserServiceImpl implements UserService {
     User user = userMapper.toEntity(request);
     user.setPassword(passwordEncoder.encode(request.getPassword()));
     user.setCreatedBy(currentUser);
+
+    // Defaults centralizados aquí (sin duplicidad con Mapper)
+    user.setStatus(UserStatus.ACTIVE);
+    user.setCreatedAt(LocalDateTime.now());
+    user.setFailedAttempts(0);
 
     if (request.getRoles() != null && !request.getRoles().isEmpty()) {
       Set<Role> roles = new HashSet<>();
@@ -87,7 +93,13 @@ public class UserServiceImpl implements UserService {
     User user = userRepository.findById(id)
       .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
-    user.setStatus(UserStatus.valueOf(status));
+    try {
+      UserStatus normalized = UserStatus.valueOf(status.trim().toUpperCase());
+      user.setStatus(normalized);
+    } catch (IllegalArgumentException ex) {
+      throw new BusinessException("Estado inválido: " + status);
+    }
+
     user.setUpdatedAt(LocalDateTime.now());
     user.setUpdatedBy(currentUser);
     userRepository.save(user);
