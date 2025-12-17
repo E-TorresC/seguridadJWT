@@ -1,12 +1,16 @@
 package com.seguridadjwt.modules.user.web.controller;
 
+import com.seguridadjwt.modules.user.domain.service.PasswordResetService;
+import com.seguridadjwt.modules.user.web.dto.request.ForgotPasswordRequest;
 import com.seguridadjwt.modules.user.web.dto.request.LoginRequest;
 import com.seguridadjwt.modules.user.web.dto.request.RefreshTokenRequest;
+import com.seguridadjwt.modules.user.web.dto.request.ResetPasswordRequest;
 import com.seguridadjwt.modules.user.web.dto.response.LoginResponse;
 import com.seguridadjwt.shared.exceptions.BusinessException;
 import com.seguridadjwt.shared.security.CustomUserDetails;
 import com.seguridadjwt.shared.security.CustomUserDetailsService;
 import com.seguridadjwt.shared.security.JwtTokenProvider;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +31,8 @@ public class AuthController {
   private final AuthenticationManager authenticationManager;
   private final JwtTokenProvider jwtTokenProvider;
   private final CustomUserDetailsService customUserDetailsService;
+  private final PasswordResetService passwordResetService;
+
 
   @PostMapping("/login")
   public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
@@ -98,4 +104,20 @@ public class AuthController {
 
     return ResponseEntity.ok(response);
   }
+
+  @PostMapping("/forgot-password")
+  public ResponseEntity<Void> forgotPassword(
+    @Valid @RequestBody ForgotPasswordRequest request,
+    HttpServletRequest http
+  ) {
+    passwordResetService.requestReset(request.getEmail(), http);
+    return ResponseEntity.ok().build(); // siempre OK (anti-enumeración)
+  }
+
+  @PostMapping("/reset-password")
+  public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    passwordResetService.resetPassword(request.getToken(), request.getNewPassword());
+    return ResponseEntity.noContent().build();
+  }
+
 }
